@@ -1,0 +1,12 @@
+y^​=3x1​+2x2​+5
+
+y_ p = 3*10 + 4*2 +0 = 38
+
+
+error = 38 - 50 = -12
+MSE = 144
+
+fGRADIENt for or w1  10 * -12 = '-'value
+so w1 should increase
+
+GRADIENT for w2 = 2* -12 =also negative value so it should lso increse 
