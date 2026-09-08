@@ -39,7 +39,6 @@ class decision_tree_node:
 
     def make_prediction(self,target):
         def predict(node,row):
-            print("row : ", row)
             if node.is_leaf:
                 return node.prediction
             if row[node.feature] <= node.threshold:
@@ -219,6 +218,45 @@ test_data = pd.DataFrame({
     "price":    [50, 65, 78, 94, 115, 132, 58, 84]
 })
 test_x = test_data.iloc[: , :3]
+test_y = test_data.iloc[:, -1]
+
+def random_forest(forest,target):
+    n = len(forest)
+    prediction = 0
+    for tree in forest:
+        prediction += tree.make_prediction(target)
+    
+    prediction = prediction / n
+    return prediction
+
+
+
 if __name__ == "__main__":
     forest = create_tree(X,Y,3)
     print(forest)
+    prediction_by_forest = random_forest(forest,test_x).to_numpy()
+    prediction_by_single_tree = forest[0].make_prediction(test_x).to_numpy()
+    no_of_prediction = len(test_y)
+    mae = np.mean( np.abs(prediction_by_forest - test_y))
+    mse = np.mean((prediction_by_forest - test_y)**2)
+    rmse = np.sqrt(mse)
+    ss_res = np.sum((test_y - prediction_by_forest)**2)
+    ss_tot = np.sum((test_y - test_y.mean())**2)
+    r2 = 1 - ss_res/ss_tot
+    print("for forest")
+    print("mae : ", mae)
+    print("mse : ", mse)
+    print("rmse : ", rmse)
+    print("r2: ",r2)
+
+    print("for single _tree")
+    mae = np.mean( np.abs(prediction_by_single_tree - test_y))
+    mse =  np.mean((prediction_by_single_tree - test_y)**2)
+    rmse = np.sqrt(mse)
+    ss_res = np.sum((test_y - prediction_by_single_tree)**2)
+    ss_tot = np.sum((test_y - test_y.mean())**2)
+    r2 = 1 - ss_res/ss_tot
+    print("mae : ", mae)
+    print("mse : ", mse)
+    print("rmse : ", rmse)
+    print("r2: ",r2)
