@@ -8,13 +8,14 @@ np.random.seed(123)
 
 
 class decision_tree_node:
-    def __init__(self,feature=None,threshold=0,left_node=None , right_node=None ,is_leaf = False ,prediction = None ):
+    def __init__(self,OOB=None,feature=None,threshold=0,left_node=None , right_node=None ,is_leaf = False ,prediction = None ):
         self.feature = feature
         self.threshold = threshold
         self.left_node = left_node
         self.right_node = right_node
         self.is_leaf = is_leaf
         self.prediction = prediction
+        self.OOB = None
     
 
 
@@ -52,12 +53,16 @@ class decision_tree_node:
 
 
 def bootstrap_sampler(X,Y):
+    all_indices = set(np.arange(0,len(Y)))
     indices = np.random.choice(
         X.shape[0] , X.shape[0] , replace = True
     )
     X = X[indices , : ]
     Y = Y[indices]
-    return X, Y
+    unique_indices = set(np.unique(indices))
+    
+    OOB = all_indices - unique_indices
+    return X, Y,OOB
 
 
 
@@ -101,7 +106,7 @@ def split_node(X,Y):
             
     
 
-def create_node(observations,predictions,f_cols):
+def create_node(observations,predictions,f_cols,no_of_features):
     if(np.all(predictions == predictions[0])):
         return decision_tree_node(
                     threshold=0,
@@ -109,7 +114,7 @@ def create_node(observations,predictions,f_cols):
                     is_leaf=True,
                     prediction= predictions[0]
                 )
-    random_features = random_feature_selection(f_cols,max_features=2)
+    random_features = random_feature_selection(f_cols,max_features=no_of_features)
     sample = observations[: , random_features.idx]
     df = pd.DataFrame(columns=["idx","feature","thres","min_sse"])
 
@@ -154,8 +159,8 @@ def create_node(observations,predictions,f_cols):
     return decision_tree_node(
         threshold=thres,
         feature=f,
-        left_node= create_node(left_x,left_y,f_cols=f_cols),
-        right_node= create_node(right_x,right_y,f_cols=f_cols)
+        left_node= create_node(left_x,left_y,f_cols=f_cols,no_of_features=no_of_features),
+        right_node= create_node(right_x,right_y,f_cols=f_cols,no_of_features=no_of_features)
         
     )
         
@@ -164,16 +169,29 @@ def create_node(observations,predictions,f_cols):
     
 
 
+def oob_evaluation(forest,data):
+    predictions_accumulator = np.zeros(data.shape[0])
+    no_of_trees = np.zeros(data.shape[0])
+
+    for tree in forest:
+        oob_indices = list(tree.OOB)
+        oob_data = data.iloc[oob_indices , :]
+        prediction = tree.make_prediction(oob_data)
+        np.add.at(predictions_accumulator,oob_indices,prediction)
+        np.add.at(no_of_trees,oob_indices,1)
+
+    overall_prediction = predictions_accumulator/no_of_trees
+    return overall_prediction
 
 
 
-
-def create_tree(features , target,n_estimator=1):
+def create_tree(features , target,n_estimator=1,no_of_features=1):
     forest = []
     for i in range(n_estimator):
-        X,Y = bootstrap_sampler(features.to_numpy() , target.to_numpy())
-        node = create_node(X,Y,features.columns)
-        forest.append(node)
+        X,Y,OOB = bootstrap_sampler(features.to_numpy() , target.to_numpy())
+        tree = create_node(X,Y,f_cols=features.columns,no_of_features=no_of_features)
+        tree.OOB = OOB
+        forest.append(tree)
     return forest
 
 
@@ -232,7 +250,7 @@ def random_forest(forest,target):
 
 
 if __name__ == "__main__":
-    forest = create_tree(X,Y,3)
+    forest = create_tree(X,Y,n_estimator=3,no_of_features=2)
     print(forest)
     prediction_by_forest = random_forest(forest,test_x).to_numpy()
     prediction_by_single_tree = forest[0].make_prediction(test_x).to_numpy()
@@ -260,3 +278,6 @@ if __name__ == "__main__":
     print("mse : ", mse)
     print("rmse : ", rmse)
     print("r2: ",r2)
+
+    p = oob_evaluation(forest,X)
+    print(p)
